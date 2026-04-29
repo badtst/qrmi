@@ -148,9 +148,7 @@ impl QuantumResource for PasqalLocal {
 
     async fn task_logs(&mut self, task_id: &str) -> Result<String> {
         match self.api_client.get_task_logs(task_id).await {
-            Ok(resp) => {
-                Ok(resp.logs)
-            }
+            Ok(resp) => Ok(resp.logs),
             Err(err) => Err(err),
         }
     }
