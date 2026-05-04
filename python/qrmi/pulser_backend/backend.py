@@ -146,7 +146,9 @@ class PulserQRMIConnection(RemoteConnection):
                 print(f"Task logs: \n---\n{logs}---")
             except RuntimeError as e:
                 if "404" in repr(e):
-                    print(f"Task logs: Your Warden version doesn't support task_logs yet")
+                    print(
+                        "Task logs: Your Warden version doesn't support task_logs yet"
+                    )
                 else:
                     raise e
         return results
