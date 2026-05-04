@@ -141,7 +141,7 @@ class PulserQRMIConnection(RemoteConnection):
                     break
                 print(f"Task status {status}, waiting 1s", flush=True)
                 time.sleep(1)
-            print(f"task logs: \n---\n{self._qrmi.task_logs(new_task_id)}\n---")
+            print(f"Task logs: \n---\n{self._qrmi.task_logs(new_task_id)}---")
         return results
 
 
