@@ -21,9 +21,12 @@ path = "src/bin/task_runner.rs"
 required-features = ["build-binary"]
 
 [features]
-default = ["quantum-system-api/iqp_retry_policy"]
+default = ["quantum-system-api/iqp_retry_policy", "munge"]
 pyo3 = ["dep:pyo3", "dep:pyo3-stub-gen"]
 build-binary = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:eyre"]
+# Loads libmunge at runtime via dlopen (see dependencies/pasqal_local_client/src/munge/ffi.rs),
+# so it's safe to keep on by default: on hosts without libmunge installed, munge-authenticated
+# calls fail with a clear error instead of the crate failing to build.
 munge = ["pasqal-local-api/munge"]
 
 [dependencies]

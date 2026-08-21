@@ -9,7 +9,7 @@ version = "0.0.1"
 edition.workspace = true
 
 [features]
-munge = []
+munge = ["dep:libloading"]
 
 [dependencies]
 anyhow = { version = "1.0.90", features = ["backtrace"] }
@@ -29,6 +29,7 @@ env_logger = "0.11.5"
 uuid = { version = "1.11.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
 rhexdump = "0.2.0"
 base64 = "0.22.1"
+libloading = { version = "0.8", optional = true }
 
 [dev-dependencies]
 assert-json-diff = "2.0.2"
