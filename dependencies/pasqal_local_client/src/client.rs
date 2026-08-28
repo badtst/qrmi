@@ -13,7 +13,9 @@
 
 #[cfg(feature = "munge")]
 use crate::munge;
-use anyhow::{bail, Result};
+#[cfg(not(feature = "munge"))]
+use anyhow::bail;
+use anyhow::Result;
 
 use crate::models::job::JobStatus;
 use reqwest::header;
@@ -223,8 +225,8 @@ impl Client {
             Ok(val)
         } else {
             let status = resp.status();
-            let json_text = resp.text().await?;
-            bail!("Status: {}, Fail {}", status, json_text);
+            let body = resp.text().await?;
+            Err(crate::error::ApiError { status, body }.into())
         }
     }
 }

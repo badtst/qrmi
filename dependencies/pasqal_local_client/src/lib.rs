@@ -15,9 +15,11 @@
 //!
 
 mod client;
+mod error;
 mod models;
 #[cfg(feature = "munge")]
 mod munge;
 
 pub use client::{Client, ClientBuilder};
+pub use error::ApiError;
 pub use models::JobStatus;
