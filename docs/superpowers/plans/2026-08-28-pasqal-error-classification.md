@@ -716,7 +716,7 @@ mod tests;
 
 - [ ] **Step 2: Write the failing tests**
 
-Create `src/pasqal/tests/local.rs`:
+Every `PasqalLocal` call except `is_accessible` goes through `create_headers()`, which requires the `munge` Cargo feature (and its native `libmunge` dependency — not installed in every build environment, and not exercised by this repo's CI either) or it `bail!`s immediately, before ever reaching a mock server. So only `is_accessible` (which hits `get_accessible`, an unauthenticated call) is testable this way; every other call site's status mapping is already covered by Task 3's `classify_local` unit tests. Create `src/pasqal/tests/local.rs`:
 
 ```rust
 use super::PasqalLocal;
@@ -753,31 +753,6 @@ fn spawn_json_response_server(
 }
 
 #[tokio::test]
-async fn task_status_maps_404_to_task_not_found() {
-    let (addr, server) =
-        spawn_json_response_server("404 Not Found", r#"{"message":"job not found"}"#);
-
-    let api_client = ClientBuilder::new(format!("http://{}", addr))
-        .build()
-        .expect("client build should succeed");
-
-    let mut qrmi = PasqalLocal {
-        api_client,
-        backend_name: "QPU1".to_string(),
-        job_uid: 1,
-        job_id: "1".to_string(),
-    };
-
-    let err = qrmi
-        .task_status("missing-job")
-        .await
-        .expect_err("should fail with 404");
-    server.join().expect("server thread should join");
-
-    assert_eq!(err.kind(), QrmiErrorKind::TaskNotFound);
-}
-
-#[tokio::test]
 async fn is_accessible_maps_401_to_authentication_failed() {
     let (addr, server) =
         spawn_json_response_server("401 Unauthorized", r#"{"message":"bad token"}"#);
@@ -803,7 +778,7 @@ async fn is_accessible_maps_401_to_authentication_failed() {
 }
 ```
 
-Run: `cargo test -p qrmi --lib pasqal::local --features munge`
+Run: `cargo test -p qrmi --lib pasqal::local`
 Expected: FAIL to compile (`mod tests` not yet declared) — confirms the harness is exercised once wired.
 
 - [ ] **Step 3: Implement — wire `classify_local` into every fallible call site**

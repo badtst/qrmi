@@ -12,6 +12,7 @@
 
 use crate::error::required_env;
 use crate::models::{Payload, ResourceType, Target, TaskResult, TaskStatus};
+use crate::pasqal::error::{classify_local, ResourceKind};
 use crate::{QrmiError, QuantumResource, Result};
 use log::warn;
 use pasqal_local_api::{Client, ClientBuilder, JobStatus};
@@ -76,7 +77,11 @@ impl QuantumResource for PasqalLocal {
     }
 
     async fn is_accessible(&mut self) -> Result<bool> {
-        let accessible = self.api_client.get_accessible().await?;
+        let accessible = self
+            .api_client
+            .get_accessible()
+            .await
+            .map_err(|e| classify_local(e, ResourceKind::Backend))?;
         Ok(accessible.is_accessible)
     }
 
@@ -105,17 +110,25 @@ impl QuantumResource for PasqalLocal {
         let job = self
             .api_client
             .create_job(sequence, job_runs, &session_id)
-            .await?;
+            .await
+            .map_err(|e| classify_local(e, ResourceKind::Backend))?;
         Ok(job.id.to_string())
     }
 
     async fn task_stop(&mut self, task_id: &str) -> Result<()> {
-        self.api_client.cancel_job(task_id).await?;
+        self.api_client
+            .cancel_job(task_id)
+            .await
+            .map_err(|e| classify_local(e, ResourceKind::Job))?;
         Ok(())
     }
 
     async fn task_status(&mut self, task_id: &str) -> Result<TaskStatus> {
-        let job = self.api_client.get_job(task_id).await?;
+        let job = self
+            .api_client
+            .get_job(task_id)
+            .await
+            .map_err(|e| classify_local(e, ResourceKind::Job))?;
         Ok(match job.status {
             JobStatus::Pending => TaskStatus::Queued,
             JobStatus::Running => TaskStatus::Running,
@@ -126,7 +139,11 @@ impl QuantumResource for PasqalLocal {
     }
 
     async fn task_result(&mut self, task_id: &str) -> Result<TaskResult> {
-        let job = self.api_client.get_job(task_id).await?;
+        let job = self
+            .api_client
+            .get_job(task_id)
+            .await
+            .map_err(|e| classify_local(e, ResourceKind::Job))?;
         let Some(results) = job.results else {
             return Err(QrmiError::TaskNotReady {
                 task_id: task_id.to_string(),
@@ -137,12 +154,20 @@ impl QuantumResource for PasqalLocal {
     }
 
     async fn task_logs(&mut self, task_id: &str) -> Result<String> {
-        let resp = self.api_client.get_task_logs(task_id).await?;
+        let resp = self
+            .api_client
+            .get_task_logs(task_id)
+            .await
+            .map_err(|e| classify_local(e, ResourceKind::Job))?;
         Ok(resp.logs)
     }
 
     async fn target(&mut self) -> Result<Target> {
-        let resp = self.api_client.get_device_specs().await?;
+        let resp = self
+            .api_client
+            .get_device_specs()
+            .await
+            .map_err(|e| classify_local(e, ResourceKind::Backend))?;
         Ok(Target { value: resp })
     }
 
@@ -152,3 +177,7 @@ impl QuantumResource for PasqalLocal {
         metadata
     }
 }
+
+#[cfg(test)]
+#[path = "tests/local.rs"]
+mod tests;
