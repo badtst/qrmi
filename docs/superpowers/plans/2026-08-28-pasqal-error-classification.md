@@ -470,6 +470,7 @@ async fn task_status_maps_404_to_task_not_found() {
 
     let mut builder = ClientBuilder::new("project-id".to_string());
     builder.with_base_url(format!("http://{}", addr));
+    builder.with_token("opaque_token".to_string()); // get_batch is an authenticated call; without a token the client fails locally before ever reaching the mock server, and the server thread's accept() then blocks forever.
     let api_client = builder.build().expect("client build should succeed");
 
     let mut qrmi = PasqalCloud {

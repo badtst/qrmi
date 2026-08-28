@@ -467,3 +467,79 @@ fn normalize_cudaq_result_normalizes_all_supported_counter_shapes() {
         assert_eq!(count_000, 47);
     }
 }
+
+use crate::error::QrmiErrorKind;
+
+fn spawn_json_response_server(
+    status_line: &str,
+    body: &str,
+) -> (std::net::SocketAddr, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind should succeed");
+    let addr = listener.local_addr().expect("local_addr should succeed");
+    let status_line = status_line.to_string();
+    let body = body.to_string();
+    let handle = thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            let mut buf = [0_u8; 4096];
+            let _ = stream.read(&mut buf).unwrap_or(0);
+            let response = format!(
+                "HTTP/1.1 {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+                status_line,
+                body.len(),
+                body
+            );
+            let _ = stream.write_all(response.as_bytes());
+            let _ = stream.flush();
+        }
+    });
+    (addr, handle)
+}
+
+#[tokio::test]
+async fn task_status_maps_404_to_task_not_found() {
+    let (addr, server) =
+        spawn_json_response_server("404 Not Found", r#"{"message":"job not found"}"#);
+
+    let mut builder = ClientBuilder::new("project-id".to_string());
+    builder.with_base_url(format!("http://{}", addr));
+    builder.with_token("opaque_token".to_string());
+    let api_client = builder.build().expect("client build should succeed");
+
+    let mut qrmi = PasqalCloud {
+        api_client,
+        backend_name: "EMU_FREE".to_string(),
+        task_kinds: std::collections::HashMap::new(),
+    };
+
+    let err = qrmi
+        .task_status("missing-batch")
+        .await
+        .expect_err("should fail with 404");
+    server.join().expect("server thread should join");
+
+    assert_eq!(err.kind(), QrmiErrorKind::TaskNotFound);
+}
+
+#[tokio::test]
+async fn is_accessible_maps_401_to_authentication_failed() {
+    let (addr, server) =
+        spawn_json_response_server("401 Unauthorized", r#"{"message":"bad token"}"#);
+
+    let mut builder = ClientBuilder::new("project-id".to_string());
+    builder.with_base_url(format!("http://{}", addr));
+    let api_client = builder.build().expect("client build should succeed");
+
+    let mut qrmi = PasqalCloud {
+        api_client,
+        backend_name: "EMU_FREE".to_string(),
+        task_kinds: std::collections::HashMap::new(),
+    };
+
+    let err = qrmi
+        .is_accessible()
+        .await
+        .expect_err("should fail with 401");
+    server.join().expect("server thread should join");
+
+    assert_eq!(err.kind(), QrmiErrorKind::AuthenticationFailed);
+}
